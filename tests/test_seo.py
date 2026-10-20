@@ -46,7 +46,8 @@ def test_canonical_and_og(built):
         html = read(built, p.path.strip("/") + "/index.html" if p.path != "/" else "index.html")
         canon = re.search(r'<link rel="canonical" href="([^"]+)"', html).group(1)
         assert canon == BASE + p.path == meta(html, "property", "og:url")
-        assert meta(html, "property", "og:image") == BASE + "/og-image.png"
+        assert re.fullmatch(re.escape(BASE + "/og-image.png?v=") + "[0-9a-f]{10}",
+                            meta(html, "property", "og:image"))
         assert meta(html, "property", "og:image:width") == "1200"
         assert meta(html, "property", "og:image:height") == "630"
         assert meta(html, "property", "og:image:alt")
@@ -141,6 +142,10 @@ def test_brand_assets_present(built):
     assert png_size("apple-touch-icon.png") == (180, 180)
     assert png_size("favicon-32.png") == (32, 32)
     assert (built / "favicon.svg").read_text(encoding="utf-8").lstrip().startswith("<svg")
+    from PIL import Image
+    with Image.open(built / "favicon.ico") as ico:
+        assert ico.format == "ICO"
+        assert {(16, 16), (32, 32), (48, 48)} <= set(ico.info["sizes"])
     assert json.loads(read(built, "site.webmanifest"))["name"] == "a42r"
 
 

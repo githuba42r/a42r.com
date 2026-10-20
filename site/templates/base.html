@@ -27,7 +27,7 @@
 <meta property="og:title" content="{{ page.title }}">
 <meta property="og:description" content="{{ page.description }}">
 <meta property="og:url" content="{{ site.base_url }}{{ page.path }}">
-<meta property="og:image" content="{{ site.base_url }}/og-image.png">
+<meta property="og:image" content="{{ site.base_url }}{{ asset_url('og-image.png') }}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="a42r. Projects: things I build, use, and give away.">
@@ -35,9 +35,9 @@
 {% endif %}
 <meta name="theme-color" content="#f7f4ee">
 <link rel="manifest" href="/site.webmanifest">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="{{ asset_url('favicon.svg') }}" type="image/svg+xml">
+<link rel="icon" href="{{ asset_url('favicon-32.png') }}" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="{{ asset_url('apple-touch-icon.png') }}">
 {% for doc in jsonld %}
 <script type="application/ld+json">{{ doc }}</script>
 {% endfor %}

@@ -84,6 +84,21 @@ def _req(mapping: dict, key: str, where: str):
     return mapping[key]
 
 
+def _slug_list(row: dict, key: str, where: str) -> tuple[str, ...]:
+    """A required, non-empty YAML list of category slugs (a bare string is rejected)."""
+    if key not in row or row[key] is None:
+        raise SiteDataError(f"{where}: missing required field '{key}'")
+    vals = row[key]
+    if not isinstance(vals, list):
+        raise SiteDataError(f"{where}: field '{key}' must be a list like [slug, ...], got {vals!r}")
+    if not vals:
+        raise SiteDataError(f"{where}: field '{key}' must list at least one category")
+    for v in vals:
+        if not isinstance(v, str):
+            raise SiteDataError(f"{where}: field '{key}' must hold category slugs, got {v!r}")
+    return tuple(vals)
+
+
 def _load_categories(rows, kind: str) -> tuple[Category, ...]:
     if not rows:
         raise SiteDataError(f"at least one {kind} category is required")
@@ -113,8 +128,8 @@ def _load_project(row: dict, platform_slugs: set[str], purpose_slugs: set[str]) 
         raise SiteDataError(f"{where}: live project requires 'url'")
     if status == "soon" and url:
         raise SiteDataError(f"{where}: coming-soon project must not set 'url'")
-    platforms = tuple(_req(row, "platforms", where))
-    purposes = tuple(_req(row, "purposes", where))
+    platforms = _slug_list(row, "platforms", where)
+    purposes = _slug_list(row, "purposes", where)
     for field, vals, known in (("platforms", platforms, platform_slugs), ("purposes", purposes, purpose_slugs)):
         for v in vals:
             if v not in known:

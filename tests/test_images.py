@@ -104,3 +104,74 @@ def test_sizes_json_matches_files():
         if p.image:
             assert Image.open(img / f"{p.image}-640.webp").size == tuple(sizes[p.image]["640"])
             assert Image.open(img / f"{p.image}-1280.webp").size == tuple(sizes[p.image]["1280"])
+
+
+def _import_script():
+    import importlib.util
+
+    root = Path(__file__).resolve().parent.parent
+    spec = importlib.util.spec_from_file_location("import_images", root / "scripts/import_images.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_import_named_bases_merges_into_sizes_json(tmp_path):
+    mod = _import_script()
+    for name, size in (("a.png", (2000, 1125)), ("b.png", (1024, 576))):
+        Image.new("RGB", size, "red").save(tmp_path / name)
+    sources = {"aaa": str(tmp_path / "a.png"), "bbb": str(tmp_path / "b.png")}
+    dest = tmp_path / "img"
+    dest.mkdir()
+    keep = {"640": [640, 360], "1280": [1200, 675]}
+    (dest / "sizes.json").write_text(json.dumps({"old": keep, "bbb": {"640": [1, 1], "1280": [2, 2]}}))
+    mod.run(["bbb"], sources=sources, dest=dest, projects=Path("site/projects.yaml"))
+    sizes = json.loads((dest / "sizes.json").read_text())
+    assert sizes == {"old": keep, "bbb": {"640": [640, 360], "1280": [1024, 576]}}
+    assert (dest / "bbb-640.webp").is_file() and not (dest / "aaa-640.webp").exists()
+
+
+def test_import_without_bases_imports_all_and_rewrites(tmp_path):
+    mod = _import_script()
+    Image.new("RGB", (2000, 1125), "red").save(tmp_path / "a.png")
+    dest = tmp_path / "img"
+    dest.mkdir()
+    (dest / "sizes.json").write_text(json.dumps({"stale": {"640": [640, 360], "1280": [1, 1]}}))
+    mod.run([], sources={"aaa": str(tmp_path / "a.png")}, dest=dest, projects=Path("site/projects.yaml"))
+    assert json.loads((dest / "sizes.json").read_text()) == {"aaa": {"640": [640, 360], "1280": [1280, 720]}}
+
+
+def test_import_rejects_unknown_base(tmp_path):
+    import pytest
+
+    with pytest.raises(SystemExit, match="nope"):
+        _import_script().run(["nope"], sources={}, dest=tmp_path, projects=Path("site/projects.yaml"))
+
+
+def test_projects_root_from_env(monkeypatch, tmp_path):
+    import importlib
+
+    import a42r_site.images as images
+
+    try:
+        monkeypatch.setenv("A42R_PROJECTS_ROOT", str(tmp_path))
+        importlib.reload(images)
+        assert images.IMAGE_SOURCES["mdrender"] == str(tmp_path / "MDRender/website/images/app-markdown.png")
+        monkeypatch.setenv("A42R_PROJECTS_ROOT", "~/elsewhere")
+        importlib.reload(images)
+        assert images.PROJECTS_ROOT == Path.home() / "elsewhere"
+        monkeypatch.delenv("A42R_PROJECTS_ROOT")
+        importlib.reload(images)
+        assert images.PROJECTS_ROOT == Path.home() / "src/AndroidStudioProjects"
+        assert images.IMAGE_SOURCES["imagetools"] == "https://image-tools.a42r.com/images/og-image.jpg"
+    finally:
+        monkeypatch.delenv("A42R_PROJECTS_ROOT", raising=False)
+        importlib.reload(images)
+
+
+def test_no_home_path_in_source():
+    root = Path(__file__).resolve().parent.parent
+    files = [*root.glob("a42r_site/*.py"), *root.glob("scripts/*"), *root.glob("tests/*.py")]
+    for f in files:
+        if f.is_file():
+            assert "/" + "home/" not in f.read_text(encoding="utf-8"), f

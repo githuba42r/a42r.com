@@ -1,12 +1,16 @@
 """Band image processing and monogram fallback tiles."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from xml.sax.saxutils import escape
 
 from PIL import Image, ImageOps
 
-_BASE = "/home/philg/src/AndroidStudioProjects/"
+# The sibling project repos that hold the source images. Override with
+# A42R_PROJECTS_ROOT when they are checked out somewhere else.
+PROJECTS_ROOT = Path(os.path.expanduser(os.environ.get("A42R_PROJECTS_ROOT", "~/src/AndroidStudioProjects")))
+_BASE = str(PROJECTS_ROOT) + os.sep
 
 IMAGE_SOURCES: dict[str, str] = {
     "pev-plugshare": _BASE + "PEVPlugShare/website/images/og-card.jpg",

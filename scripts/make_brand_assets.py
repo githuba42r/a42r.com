@@ -1,11 +1,13 @@
-"""Generate the brand PNGs (favicons, app icons, OG image) into site/static/.
+"""Generate the brand images (favicons, app icons, OG image) into site/static/.
 
-Run from the repo root: python scripts/make_brand_assets.py
+Run from the repo root: python scripts/make_brand_assets.py [NAME ...] [--out DIR]
+With NAMEs (e.g. favicon.ico) only those files are written; with none, all are.
 Needs Pillow. Uses the first installed serif from FONT_CANDIDATES (found with
 fc-match), so output depends on the machine's fonts; the PNGs are committed.
 """
 from __future__ import annotations
 
+import argparse
 import subprocess
 from pathlib import Path
 
@@ -60,15 +62,40 @@ def og_image(font_path: str) -> Image.Image:
     return img
 
 
-def main() -> None:
+ICO_SIZES = (16, 32, 48)
+
+
+def favicon_ico(font_path: str, path: Path) -> None:
+    """A multi-size favicon.ico (16, 32, 48), each size drawn at its own scale."""
+    frames = [wordmark_icon(s, font_path, 0.92) for s in ICO_SIZES]
+    frames[-1].save(path, format="ICO", sizes=[(s, s) for s in ICO_SIZES], append_images=frames[:-1])
+
+
+OUTPUTS = {
+    "icon-512.png": lambda f, p: wordmark_icon(512, f).save(p),
+    "icon-192.png": lambda f, p: wordmark_icon(192, f).save(p),
+    "apple-touch-icon.png": lambda f, p: wordmark_icon(180, f, 0.8).save(p),
+    "favicon-32.png": lambda f, p: wordmark_icon(32, f, 0.92).save(p),
+    "favicon.ico": favicon_ico,
+    "og-image.png": lambda f, p: og_image(f).save(p, optimize=True),
+}
+
+
+def main(argv: list[str] | None = None) -> None:
+    ap = argparse.ArgumentParser(description="Generate the a42r brand images.")
+    ap.add_argument("names", nargs="*", metavar="NAME",
+                    help=f"files to write (default: all of {', '.join(OUTPUTS)})")
+    ap.add_argument("--out", type=Path, default=STATIC, help="output directory (default: site/static)")
+    args = ap.parse_args(argv)
+    unknown = [n for n in args.names if n not in OUTPUTS]
+    if unknown:
+        ap.error(f"unknown file(s): {', '.join(unknown)}")
     font = find_font()
     print("font:", font)
-    big = wordmark_icon(512, font)
-    big.save(STATIC / "icon-512.png")
-    wordmark_icon(192, font).save(STATIC / "icon-192.png")
-    wordmark_icon(180, font, 0.8).save(STATIC / "apple-touch-icon.png")
-    wordmark_icon(32, font, 0.92).save(STATIC / "favicon-32.png")
-    og_image(font).save(STATIC / "og-image.png", optimize=True)
+    args.out.mkdir(parents=True, exist_ok=True)
+    for name in args.names or OUTPUTS:
+        OUTPUTS[name](font, args.out / name)
+        print(args.out / name)
 
 
 if __name__ == "__main__":

@@ -12,8 +12,8 @@ site:
     self-hosted tools for riders, developers and everyone else.
   privacy_title: Privacy at a42r - No Tracking, No Cookies
   privacy_description: >-
-    How the a42r site handles your data: no cookies, no analytics, no third-party
-    requests. We collect nothing about you when you browse these pages.
+    How the a42r site handles your data: no cookies, no analytics and no
+    third-party requests, just short-lived server and Cloudflare access logs.
 
 platforms:
   - slug: android

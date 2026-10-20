@@ -23,8 +23,8 @@
   {% if p.image %}
     {% set sz = img_sizes[p.image] %}
     <picture>
-      <source type="image/webp" srcset="/img/{{ p.image }}-640.webp {{ sz['640'][0] }}w, /img/{{ p.image }}-1280.webp {{ sz['1280'][0] }}w" sizes="(max-width: 720px) calc(100vw - 66px), (max-width: 1080px) 46vw, 460px">
-      <img src="/img/{{ p.image }}-640.jpg" width="{{ sz['640'][0] }}" height="{{ sz['640'][1] }}" alt="{{ p.name }} preview"{% if not first %} loading="lazy"{% endif %} decoding="async">
+      <source type="image/webp" srcset="{{ asset_url('img/' ~ p.image ~ '-640.webp') }} {{ sz['640'][0] }}w, {{ asset_url('img/' ~ p.image ~ '-1280.webp') }} {{ sz['1280'][0] }}w" sizes="(max-width: 720px) calc(100vw - 66px), (max-width: 1080px) 46vw, 460px">
+      <img src="{{ asset_url('img/' ~ p.image ~ '-640.jpg') }}" width="{{ sz['640'][0] }}" height="{{ sz['640'][1] }}" alt="{{ p.name }} preview"{% if not first %} loading="lazy"{% endif %} decoding="async">
     </picture>
   {% else %}
     {{ monogram(p) }}

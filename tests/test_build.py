@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from a42r_site.build import BuildError, build, pages_for
-from a42r_site.data import load_site
+from a42r_site.data import SiteDataError, load_site
 from helpers import SITE_SRC, band, band_names, escape, read
 
 SITE = load_site(SITE_SRC / "projects.yaml")
@@ -128,12 +128,12 @@ def test_monogram_used_without_image(built):  # Review Focus 3
 def test_picture_srcset_from_sizes_json(built):
     home = read(built, "index.html")
     dest = band(home, "Destination ETA")
-    assert "/img/destination-eta-640.webp 640w" in dest
-    assert "/img/destination-eta-1280.webp 1200w" in dest
-    assert 'src="/img/destination-eta-640.jpg"' in dest
+    assert re.search(r"/img/destination-eta-640\.webp\?v=[0-9a-f]{10} 640w", dest)
+    assert re.search(r"/img/destination-eta-1280\.webp\?v=[0-9a-f]{10} 1200w", dest)
+    assert re.search(r'src="/img/destination-eta-640\.jpg\?v=[0-9a-f]{10}"', dest)
     assert 'alt="Destination ETA preview"' in dest
     md = band(home, "MDRender")
-    assert "/img/mdrender-1280.webp 1280w" in md
+    assert re.search(r"/img/mdrender-1280\.webp\?v=[0-9a-f]{10} 1280w", md)
     first = re.search(r"<article\b.*?</article>", home, re.S).group(0)
     assert 'loading="lazy"' not in first
     assert 'loading="lazy"' in dest or dest == first
@@ -160,7 +160,7 @@ def test_internal_links_resolve(built):
                     assert target.is_file(), (f, v)
             for part in (a.get("srcset") or "").split(","):
                 if part.strip():
-                    assert (built / part.split()[0].lstrip("/")).is_file(), (f, part)
+                    assert (built / part.split()[0].split("?")[0].lstrip("/")).is_file(), (f, part)
 
 
 def _local(url: str) -> bool:
@@ -281,3 +281,55 @@ def test_cli_builds_to_out_dir(tmp_path, monkeypatch):
     monkeypatch.chdir(SITE_SRC.parent)
     build_mod.main(["--out", str(tmp_path / "w")])
     assert (tmp_path / "w" / "index.html").is_file()
+
+
+def test_missing_image_size_names_fix(tmp_path):
+    import json
+    src = tmp_path / "src"
+    shutil.copytree(SITE_SRC, src)
+    sizes_file = src / "static/img/sizes.json"
+    sizes = json.loads(sizes_file.read_text())
+    del sizes["mdrender"]
+    sizes_file.write_text(json.dumps(sizes))
+    with pytest.raises(SiteDataError) as e:
+        build(src, tmp_path / "out")
+    assert str(e.value) == (
+        "project 'mdrender' image 'mdrender' missing from site/static/img/sizes.json — "
+        "add it to IMAGE_SOURCES in a42r_site/images.py and run scripts/import_images.py mdrender"
+    )
+    assert not (tmp_path / "out").exists()
+
+
+def _version_of(url: str) -> tuple[str, str]:
+    path, _, query = url.partition("?")
+    assert query.startswith("v="), url
+    return path, query[2:]
+
+
+def test_local_images_and_icons_versioned_by_content_hash(built):
+    import hashlib
+    from urllib.parse import urlparse
+
+    from a42r_site.data import load_site as _load
+    base = _load(SITE_SRC / "projects.yaml").base_url
+    seen = set()
+    for f, html in all_pages(built).items():
+        urls = []
+        for tag, a in tags(html):
+            if tag == "img" and a.get("src", "").startswith("/"):
+                urls.append(a["src"])
+            if tag == "source":
+                urls += [part.split()[0] for part in a.get("srcset", "").split(",") if part.strip()]
+            if tag == "link" and set(a.get("rel", "").split()) & {"icon", "apple-touch-icon"}:
+                urls.append(a["href"])
+            if tag == "meta" and a.get("property") == "og:image":
+                assert a["content"].startswith(base + "/"), a
+                urls.append(urlparse(a["content"]).path + "?" + urlparse(a["content"]).query)
+        for u in urls:
+            path, version = _version_of(u)
+            want = hashlib.sha256((SITE_SRC / "static" / path.lstrip("/")).read_bytes()).hexdigest()[:10]
+            assert version == want, (f, u)
+            seen.add(path)
+    assert {"/favicon.svg", "/favicon-32.png", "/apple-touch-icon.png", "/og-image.png"} <= seen
+    assert any(p.startswith("/img/") and p.endswith(".jpg") for p in seen)
+    assert any(p.endswith("-1280.webp") for p in seen)

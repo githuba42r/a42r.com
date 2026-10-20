@@ -12,7 +12,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from markupsafe import Markup
 
-from a42r_site.data import Category, Project, Site, load_site
+from a42r_site.data import Category, Project, Site, SiteDataError, load_site
 from a42r_site.images import monogram_svg, tint
 from a42r_site.seo import ROBOTS, jsonld_for, jsonld_script, sitemap_xml
 
@@ -71,6 +71,27 @@ def _band_style(accent: str) -> str:
     return f"--accent:{accent};--band-bg:{tint(accent, 0.12)};--band-line:{_mix(accent, LINE, 0.22)}"
 
 
+def file_hash(path: Path) -> str:
+    """Cache-busting version for a static file: first 10 hex of its sha256."""
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()[:10]
+
+
+def _asset_url(static: Path):
+    """Return a Jinja helper mapping 'img/x.jpg' to '/img/x.jpg?v=<file_hash>'."""
+    cache: dict[str, str] = {}
+
+    def asset_url(rel: str) -> str:
+        rel = rel.lstrip("/")
+        if rel not in cache:
+            f = static / rel
+            if not f.is_file():
+                raise BuildError(f"template references /{rel}, which is not in {static}")
+            cache[rel] = f"/{rel}?v={file_hash(f)}"
+        return cache[rel]
+
+    return asset_url
+
+
 def _output_file(out: Path, path: str) -> Path:
     if path.endswith(".html"):
         return out / path.lstrip("/")
@@ -123,7 +144,11 @@ def build(src: Path = Path("site"), out: Path = Path("website"), lastmod: str | 
     sizes = json.loads((src / "static" / "img" / "sizes.json").read_text(encoding="utf-8"))
     for p in site.projects:
         if p.image and p.image not in sizes:
-            raise ValueError(f"project '{p.slug}': image '{p.image}' is missing from img/sizes.json")
+            raise SiteDataError(
+                f"project '{p.slug}' image '{p.image}' missing from site/static/img/sizes.json — "
+                f"add it to IMAGE_SOURCES in a42r_site/images.py and run "
+                f"scripts/import_images.py {p.image}"
+            )
 
     env = Environment(
         loader=FileSystemLoader(src / "templates"),
@@ -139,7 +164,8 @@ def build(src: Path = Path("site"), out: Path = Path("website"), lastmod: str | 
         img_sizes=sizes,
         monogram=lambda p: Markup(monogram_svg(p.name, p.accent)),
         band_style=_band_style,
-        asset_version=hashlib.sha256((src / "static" / "styles.css").read_bytes()).hexdigest()[:10],
+        asset_version=file_hash(src / "static" / "styles.css"),
+        asset_url=_asset_url(src / "static"),
     )
 
     _empty_dir(out, src)
