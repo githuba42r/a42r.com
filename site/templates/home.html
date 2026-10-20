@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "_band.html" import band %}
+{% block content %}
+<div class="page-intro">
+  <h1>{{ page.h1 }}</h1>
+  <p class="lede">{{ site.tagline }}</p>
+  <p>{{ site.summary }}</p>
+</div>
+<div class="bands">
+{% for p in page.projects %}
+{{ band(p, loop.first) }}
+{% endfor %}
+</div>
+{% endblock %}
