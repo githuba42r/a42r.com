@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 _BASE = "/home/philg/src/AndroidStudioProjects/"
 
@@ -19,33 +19,56 @@ IMAGE_SOURCES: dict[str, str] = {
 }
 
 
-def _flatten(im: Image.Image) -> Image.Image:
-    """Convert to RGB, compositing any transparency onto white."""
+def _flatten(im: Image.Image, bg: str = "#ffffff") -> Image.Image:
+    """Convert to RGB, compositing any transparency onto bg."""
     if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
         rgba = im.convert("RGBA")
-        bg = Image.new("RGB", rgba.size, "white")
+        bg = Image.new("RGB", rgba.size, bg)
         bg.paste(rgba, mask=rgba.getchannel("A"))
         return bg
     return im.convert("RGB")
 
 
-def _fit(im: Image.Image, width: int) -> Image.Image:
-    if im.width <= width:
-        return im.copy()
-    height = max(1, round(im.height * width / im.width))
-    return im.resize((width, height), Image.LANCZOS)
+def _to_16x9(im: Image.Image, bg: str) -> Image.Image:
+    """Normalise to 16:9: centre-crop landscape, letterbox portrait on bg."""
+    w, h = im.size
+    if w / h >= 1.2:
+        if w * 9 > h * 16:  # wider than 16:9: crop width
+            cw = round(h * 16 / 9)
+            left = (w - cw) // 2
+            return im.crop((left, 0, left + cw, h))
+        ch = round(w * 9 / 16)  # between 1.2 and 16:9: crop height
+        top = (h - ch) // 2
+        return im.crop((0, top, w, top + ch))
+    cw = round(h * 16 / 9)
+    canvas = Image.new("RGB", (cw, h), bg)
+    canvas.paste(im, ((cw - w) // 2, 0))
+    return canvas
 
 
-def import_image(src: Path, dest_dir: Path, base: str) -> None:
+def tint(accent: str, amount: float = 0.15) -> str:
+    """Mix `amount` of accent into white, returned as #rrggbb."""
+    rgb = [int(accent[i : i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(255 * (1 - amount) + c * amount):02x}" for c in rgb)
+
+
+def import_image(
+    src: Path, dest_dir: Path, base: str, bg: str = "#ffffff"
+) -> dict[str, list[int]]:
     dest_dir = Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
     with Image.open(src) as opened:
-        im = _flatten(opened)
-    small = _fit(im, 640)
-    large = _fit(im, 1280)
+        im = _flatten(ImageOps.exif_transpose(opened), bg)
+    band = _to_16x9(im, bg)
+    lw = min(1280, band.width)
+    lw -= lw % 2
+    lh = round(lw * 9 / 16)
+    small = band.resize((640, 360), Image.LANCZOS)
+    large = band if band.size == (lw, lh) else band.resize((lw, lh), Image.LANCZOS)
     small.save(dest_dir / f"{base}-640.webp", "WEBP", quality=82)
     large.save(dest_dir / f"{base}-1280.webp", "WEBP", quality=82)
     small.save(dest_dir / f"{base}-640.jpg", "JPEG", quality=85, progressive=True)
+    return {"640": [640, 360], "1280": [lw, lh]}
 
 
 def _initials(name: str) -> str:
