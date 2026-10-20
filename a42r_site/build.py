@@ -14,6 +14,11 @@ from a42r_site.data import Category, Project, Site, load_site
 from a42r_site.images import monogram_svg, tint
 
 LINE = "#e4ddd0"  # border colour from the global palette
+MARKER = ".a42r-build"  # marks a directory as build output that may be emptied
+
+
+class BuildError(RuntimeError):
+    """Raised when the build refuses to run, e.g. an unsafe output directory."""
 
 
 @dataclass
@@ -70,16 +75,38 @@ def _output_file(out: Path, path: str) -> Path:
 
 
 def _empty_dir(out: Path, src: Path) -> None:
+    """Empty `out` for a fresh build, or raise BuildError having deleted nothing.
+
+    Only a directory that is missing, empty, or marked by an earlier build
+    with MARKER may be emptied, and never one that is a symlink, a git
+    checkout, the source tree (or a parent of it), the filesystem root or $HOME.
+    """
+    if out.is_symlink():
+        raise BuildError(f"refusing to build into {out}: it is a symlink")
     out_r, src_r = out.resolve(), src.resolve()
-    if out_r == src_r or out_r in src_r.parents or out_r == Path(out_r.anchor):
-        raise ValueError(f"refusing to empty {out}: it contains the site source")
+    if out_r == src_r or out_r in src_r.parents:
+        raise BuildError(f"refusing to empty {out}: it is or contains the site source {src}")
+    if out_r == Path(out_r.anchor) or out_r == Path.home().resolve():
+        raise BuildError(f"refusing to empty {out}: it is the filesystem root or your home directory")
     if out.exists():
-        for child in out.iterdir():
+        if not out.is_dir():
+            raise BuildError(f"refusing to build into {out}: it is not a directory")
+        if (out / ".git").exists():
+            raise BuildError(f"refusing to empty {out}: it contains .git")
+        children = list(out.iterdir())
+        if children and not (out / MARKER).is_file():
+            raise BuildError(
+                f"refusing to empty {out}: it is not empty and has no {MARKER} marker "
+                "from an earlier build; pick an empty directory or remove it yourself"
+            )
+        for child in children:
             if child.is_dir() and not child.is_symlink():
                 shutil.rmtree(child)
             else:
                 child.unlink()
     out.mkdir(parents=True, exist_ok=True)
+    (out / MARKER).write_text("Built by a42r_site.build; this directory is emptied on every build.\n",
+                              encoding="utf-8")
 
 
 def build(src: Path = Path("site"), out: Path = Path("website")) -> list[Page]:

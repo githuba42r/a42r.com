@@ -3,7 +3,9 @@ import shutil
 from html.parser import HTMLParser
 from pathlib import Path
 
-from a42r_site.build import build, pages_for
+import pytest
+
+from a42r_site.build import BuildError, build, pages_for
 from a42r_site.data import load_site
 from helpers import SITE_SRC, band, band_names, escape, read
 
@@ -187,6 +189,7 @@ def test_no_external_requests(built):
 def test_privacy_and_404_copy(built):
     priv = read(built, "privacy/index.html")
     assert "cookies" in priv.lower() and "analytics" in priv.lower()
+    assert "access logs" in priv and "Cloudflare" in priv
     nf = read(built, "404.html")
     assert 'href="/"' in nf
     main = re.search(r"<main\b.*?</main>", nf, re.S).group(0)
@@ -195,11 +198,67 @@ def test_privacy_and_404_copy(built):
 
 
 def test_rebuild_removes_stale_files(tmp_path):  # Review Focus 4
-    (tmp_path / "old").mkdir()
-    (tmp_path / "old" / "index.html").write_text("x")
-    build(SITE_SRC, tmp_path)
-    assert not (tmp_path / "old").exists()
-    assert (tmp_path / "index.html").is_file()
+    out = tmp_path / "out"
+    build(SITE_SRC, out)
+    assert (out / ".a42r-build").is_file()
+    (out / "old").mkdir()
+    (out / "old" / "index.html").write_text("x")
+    build(SITE_SRC, out)
+    assert not (out / "old").exists()
+    assert (out / "index.html").is_file()
+
+
+def test_builds_into_empty_or_missing_dir(tmp_path):
+    (tmp_path / "empty").mkdir()
+    build(SITE_SRC, tmp_path / "empty")
+    build(SITE_SRC, tmp_path / "missing" / "deeper")
+    assert (tmp_path / "empty" / "index.html").is_file()
+    assert (tmp_path / "missing" / "deeper" / ".a42r-build").is_file()
+
+
+def test_refuses_unmarked_nonempty_dir(tmp_path):
+    keep = tmp_path / "notes.txt"
+    keep.write_text("precious")
+    with pytest.raises(BuildError, match="a42r-build"):
+        build(SITE_SRC, tmp_path)
+    assert keep.read_text() == "precious"
+    assert not (tmp_path / "index.html").exists()
+
+
+def test_refuses_git_dir(tmp_path):
+    out = tmp_path / "out"
+    build(SITE_SRC, out)  # marked, so only the .git rule can stop it
+    (out / ".git").mkdir()
+    (out / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
+    with pytest.raises(BuildError, match=r"\.git"):
+        build(SITE_SRC, out)
+    assert (out / ".git" / "HEAD").is_file() and (out / "index.html").is_file()
+
+
+def test_refuses_symlink_out(tmp_path):
+    target = tmp_path / "target"
+    build(SITE_SRC, target)  # a marked build dir behind the link
+    link = tmp_path / "link"
+    link.symlink_to(target, target_is_directory=True)
+    with pytest.raises(BuildError, match="symlink"):
+        build(SITE_SRC, link)
+    assert (target / "index.html").is_file()
+
+
+def test_refuses_source_root_and_home(tmp_path, monkeypatch):
+    src = tmp_path / "src"
+    shutil.copytree(SITE_SRC, src)
+    (src / ".a42r-build").write_text("")  # even a marker must not allow it
+    for bad in (src, tmp_path, Path("/")):
+        with pytest.raises(BuildError):
+            build(src, bad)
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".a42r-build").write_text("")
+    monkeypatch.setenv("HOME", str(home))
+    with pytest.raises(BuildError, match="home"):
+        build(src, home)
+    assert (src / "projects.yaml").is_file()
 
 
 def test_removed_project_disappears_on_rebuild(tmp_path):  # Review Focus 4
