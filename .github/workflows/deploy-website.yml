@@ -5,19 +5,24 @@ name: Deploy website
 # site/ + a42r_site/ by `python -m a42r_site.build` after the tests pass.
 #
 # Triggers:
-#   - push to main touching site/**, a42r_site/**, requirements.txt
+#   - push to main touching site/**, a42r_site/**, requirements.txt,
+#     requirements-dev.txt or this workflow
 #   - manual dispatch
 #
 # Required repository secrets:
 #   WEBSITE_DEPLOY_HOST         SSH host (161.33.93.37 — the Cloudflare-proxied name won't carry SSH)
-#   WEBSITE_DEPLOY_USER         SSH user with write access to WEBSITE_DEPLOY_PATH
+#   WEBSITE_DEPLOY_USER         SSH user that holds the deploy key below
 #   WEBSITE_DEPLOY_SSH_KEY      private key for that user (ed25519, no passphrase)
 #   WEBSITE_DEPLOY_KNOWN_HOSTS  output of: ssh-keyscan -t ed25519 <host>
 # Cloudflare cache purge (skipped with a warning when either is absent):
 #   CLOUDFLARE_API_TOKEN        API token with Zone > Cache Purge on a42r.com
 #   CLOUDFLARE_ZONE_ID          zone ID of a42r.com (dashboard > Overview)
-# Optional repository variable:
-#   WEBSITE_DEPLOY_PATH         defaults to /opt/apps/a42r/website
+#
+# The deploy key is rrsync-restricted to the web root. Its line in the deploy
+# user's ~/.ssh/authorized_keys on the server is:
+#   command="/usr/bin/rrsync /opt/apps/a42r/website",restrict ssh-ed25519 …
+# rrsync roots every path at /opt/apps/a42r/website, so the rsync below names
+# no remote path ("$USER@$HOST:"): an absolute path would be nested under it.
 
 on:
   push:
@@ -35,10 +40,8 @@ permissions:
 
 concurrency:
   group: deploy-website
-  cancel-in-progress: true
-
-env:
-  DEPLOY_PATH: ${{ vars.WEBSITE_DEPLOY_PATH || '/opt/apps/a42r/website' }}
+  # Never cancel a deploy mid-rsync; a newer push waits its turn instead.
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -95,12 +98,14 @@ jobs:
           HOST: ${{ secrets.WEBSITE_DEPLOY_HOST }}
           USER: ${{ secrets.WEBSITE_DEPLOY_USER }}
         run: |
-          # Trailing slashes: copy the contents of website/ into DEPLOY_PATH.
+          # Trailing slash: copy the contents of website/ into the web root.
+          # The remote path is empty because the key's rrsync command already
+          # pins it to the web root (see the header).
           # --delete keeps the server an exact mirror of the repo directory.
           # .a42r-build is the build's marker file; it never goes to the server.
           rsync -rlvz --delete --exclude=.a42r-build --chmod=D755,F644 \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
-            website/ "$USER@$HOST:$DEPLOY_PATH/"
+            website/ "$USER@$HOST:"
 
       - name: Purge Cloudflare cache
         env:
@@ -135,7 +140,7 @@ jobs:
 
       - name: Smoke-test live site
         run: |
-          for path in "" robots.txt sitemap.xml favicon-32.png android/; do
+          for path in "" robots.txt sitemap.xml favicon.ico favicon-32.png android/; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "https://www.a42r.com/$path")
             echo "/$path -> $code"
             if [ "$code" != "200" ]; then
