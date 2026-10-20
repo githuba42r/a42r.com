@@ -107,7 +107,7 @@ def test_header_nav_and_footer(built):
     assert "Platforms" in home and "Purposes" in home
     foot = re.search(r"<footer\b.*?</footer>", home, re.S).group(0)
     assert "© a42r" in foot and 'href="https://github.com/githuba42r"' in foot and 'href="/privacy/"' in foot
-    assert "<script" not in home
+    assert not re.search(r'<script(?![^>]*application/ld\+json)', home)  # JSON-LD only, no JS
 
 
 def test_live_vs_soon_actions(built):

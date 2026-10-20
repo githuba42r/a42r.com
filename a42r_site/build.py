@@ -5,6 +5,7 @@ import argparse
 import json
 import shutil
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -12,6 +13,7 @@ from markupsafe import Markup
 
 from a42r_site.data import Category, Project, Site, load_site
 from a42r_site.images import monogram_svg, tint
+from a42r_site.seo import ROBOTS, jsonld_for, jsonld_script, sitemap_xml
 
 LINE = "#e4ddd0"  # border colour from the global palette
 MARKER = ".a42r-build"  # marks a directory as build output that may be emptied
@@ -109,8 +111,12 @@ def _empty_dir(out: Path, src: Path) -> None:
                               encoding="utf-8")
 
 
-def build(src: Path = Path("site"), out: Path = Path("website")) -> list[Page]:
-    """Empty `out`, copy `src/static/` into it and render every page."""
+def build(src: Path = Path("site"), out: Path = Path("website"), lastmod: str | None = None) -> list[Page]:
+    """Empty `out`, copy `src/static/` into it and render every page.
+
+    `lastmod` (YYYY-MM-DD) goes in the sitemap; it defaults to today in UTC.
+    """
+    lastmod = lastmod or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     src, out = Path(src), Path(out)
     site = load_site(src / "projects.yaml")
     sizes = json.loads((src / "static" / "img" / "sizes.json").read_text(encoding="utf-8"))
@@ -139,10 +145,14 @@ def build(src: Path = Path("site"), out: Path = Path("website")) -> list[Page]:
                     ignore=shutil.ignore_patterns("sizes.json"))
     pages = pages_for(site)
     for page in pages:
-        html = env.get_template(page.template).render(page=page)
+        docs = [Markup(jsonld_script(d)) for d in jsonld_for(site, page)]
+        html = env.get_template(page.template).render(page=page, jsonld=docs)
         dest = _output_file(out, page.path)
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(html, encoding="utf-8")
+    urls = [site.base_url + p.path for p in pages if p.path != "/404.html"]
+    (out / "sitemap.xml").write_text(sitemap_xml(urls, lastmod), encoding="utf-8")
+    (out / "robots.txt").write_text(ROBOTS, encoding="utf-8")
     return pages
 
 
