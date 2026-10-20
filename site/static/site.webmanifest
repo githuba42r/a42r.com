@@ -1,0 +1,13 @@
+{
+  "name": "a42r",
+  "short_name": "a42r",
+  "description": "Apps, extensions and tools to build, use and give away.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#f7f4ee",
+  "theme_color": "#f7f4ee",
+  "icons": [
+    {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}

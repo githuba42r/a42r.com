@@ -1,0 +1,87 @@
+{% macro nav_groups() %}
+{% for label, cats in (("Platforms", site.platforms), ("Purposes", site.purposes)) %}
+<div class="nav-group" role="group" aria-label="{{ label }}">
+  <span class="nav-label" aria-hidden="true">{{ label }}</span>
+  <ul>
+  {% for c in cats %}
+    <li><a href="/{{ c.slug }}/"{% if page.category and page.category.slug == c.slug %} aria-current="page"{% endif %}>{{ c.name }}</a></li>
+  {% endfor %}
+  </ul>
+</div>
+{% endfor %}
+{% endmacro %}
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% block head %}
+<title>{{ page.title }}</title>
+<meta name="description" content="{{ page.description }}">
+{% if page.path == "/404.html" %}
+<meta name="robots" content="noindex">
+{% else %}
+<link rel="canonical" href="{{ site.base_url }}{{ page.path }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ site.name }}">
+<meta property="og:title" content="{{ page.title }}">
+<meta property="og:description" content="{{ page.description }}">
+<meta property="og:url" content="{{ site.base_url }}{{ page.path }}">
+<meta property="og:image" content="{{ site.base_url }}{{ asset_url('og-image.png') }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="a42r. Projects: things I build, use, and give away.">
+<meta name="twitter:card" content="summary_large_image">
+{% endif %}
+<meta name="theme-color" content="#f7f4ee">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="icon" href="{{ asset_url('favicon.svg') }}" type="image/svg+xml">
+<link rel="icon" href="{{ asset_url('favicon-32.png') }}" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="{{ asset_url('apple-touch-icon.png') }}">
+{% for doc in jsonld %}
+<script type="application/ld+json">{{ doc }}</script>
+{% endfor %}
+{% endblock %}
+<link rel="stylesheet" href="/styles.css?v={{ asset_version }}">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="wordmark" href="/"{% if page.path == "/" %} aria-current="page"{% endif %}>a42r</a>
+    <nav class="site-nav" aria-label="Projects by platform and purpose">
+      <div class="nav-wide">
+{{ nav_groups() }}
+      </div>
+      <details class="nav-menu">
+        <summary>Menu</summary>
+        <div class="nav-panel">
+{{ nav_groups() }}
+        </div>
+      </details>
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap">
+{% if page.breadcrumbs %}
+<nav class="crumbs" aria-label="Breadcrumb">
+  <ol>
+  {% for label, href in page.breadcrumbs %}
+    {% if loop.last %}
+    <li><span aria-current="page">{{ label }}</span></li>
+    {% else %}
+    <li><a href="{{ href }}">{{ label }}</a></li>
+    {% endif %}
+  {% endfor %}
+  </ol>
+</nav>
+{% endif %}
+{% block content %}{% endblock %}
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>© a42r <span aria-hidden="true">·</span> <a href="https://github.com/githuba42r">GitHub</a> <span aria-hidden="true">·</span> <a href="/privacy/">Privacy</a></p>
+  </div>
+</footer>
+</body>
+</html>

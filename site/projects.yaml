@@ -1,0 +1,274 @@
+site:
+  base_url: https://www.a42r.com
+  name: a42r
+  tagline: Things I build, use, and give away.
+  summary: >-
+    a42r is a small collection of apps, extensions and tools for riders,
+    developers and anyone who likes tidy software. Some are live, some are on
+    the way.
+  home_title: a42r Projects - Apps, Extensions and Tools
+  home_description: >-
+    Browse a42r projects: Android apps, browser extensions, web apps and
+    self-hosted tools for riders, developers and everyone else.
+  privacy_title: Privacy at a42r - No Tracking, No Cookies
+  privacy_description: >-
+    How the a42r site handles your data: no cookies, no analytics and no
+    third-party requests, just short-lived server and Cloudflare access logs.
+
+platforms:
+  - slug: android
+    name: Android
+    title: Android Apps by a42r - Riding, Travel and Utilities
+    description: >-
+      Android apps from a42r, covering charging maps, live ETA sharing, riding
+      data and document viewing. Browse what is live and what is coming soon.
+    intro: >-
+      These projects run on an Android phone. Most are sideloaded or installed
+      from a project site, and none of them need an account to get started.
+      Live apps come first, followed by the ones still being finished.
+  - slug: browser-extensions
+    name: Browser extensions
+    title: Browser Extensions by a42r - Capture and Form Filling
+    description: >-
+      Browser extensions from a42r for screenshot capture and test data entry.
+      See which ones are live and which are still being prepared for release.
+    intro: >-
+      Extensions that live in your browser toolbar and do one job each. They
+      work on the page you already have open, so there is nothing new to learn.
+      More extensions are planned.
+  - slug: web-apps
+    name: Web apps
+    title: Web Apps by a42r - Image Tools, Routes and Reporting
+    description: >-
+      Web apps from a42r that run in a browser tab, from image compression to
+      route analysis and parking reports. Nothing to install to try them.
+    intro: >-
+      Open a tab and get to work. These apps run in the browser, either hosted
+      by us or on a server you control. Some also come as Android apps or
+      browser extensions.
+  - slug: desktop-self-hosted
+    name: Desktop and self-hosted
+    title: Desktop and Self-Hosted Tools by a42r
+    description: >-
+      Desktop and self-hosted tools from a42r: push servers, Home Assistant
+      integrations, video overlays and download automation you run yourself.
+    intro: >-
+      Software you run on your own machine or server, so the data stays with
+      you. Expect command-line tools, Docker containers and Home Assistant
+      add-ons. Setup takes a little more effort, and the payoff is control.
+
+purposes:
+  - slug: development-tools
+    name: Development tools
+    title: Development Tools by a42r - Image, Docs and Test Data
+    description: >-
+      Development tools from a42r: image compression, encrypted Markdown
+      viewing and test data filling for web developers and testers.
+    intro: >-
+      Tools that make building and testing software a little less tedious. They
+      cover preparing images, reading documentation on the go and filling in
+      forms with believable data.
+  - slug: euc-riding-tools
+    name: EUC riding tools
+    title: EUC Riding Tools by a42r - Maps, ETA and Telemetry
+    description: >-
+      Tools for electric unicycle riders from a42r: charging spot maps, ETA
+      sharing, OsmAnd widgets, charge monitoring and ride video overlays.
+    intro: >-
+      Built by and for people who ride electric unicycles and other personal
+      electric vehicles. They help you find a socket, tell people when you will
+      arrive, watch your wheel charge and make sense of ride data.
+  - slug: other-tools
+    name: Other tools
+    title: Other Tools by a42r - Reports, Puzzles and Downloads
+    description: >-
+      Everything else from a42r: parking reports, document transfer, Sudoku
+      practice and Linux ISO downloads that keep themselves up to date.
+    intro: >-
+      Projects that do not fit a neat label but earn their place anyway. Some
+      solve a civic annoyance, some tidy up a chore, and one is just for
+      practising puzzles.
+
+projects:
+  - slug: pev-plugshare
+    name: PEV PlugShare
+    status: live
+    url: https://pevplugshare.a42r.com/
+    repo_url: https://github.com/githuba42r/PEVPlugShare
+    summary: >-
+      An Android app for finding and sharing places to charge e-scooters,
+      e-bikes and electric unicycles. It works offline and syncs with OsmAnd.
+    platforms: [android]
+    purposes: [euc-riding-tools]
+    accent: "#1e824c"
+    image: pev-plugshare
+    os: Android
+    app_category: TravelApplication
+  - slug: destination-eta
+    name: Destination ETA
+    status: live
+    url: https://destination.a42r.com/
+    repo_url: https://github.com/githuba42r/DestinationETAAndroidApp
+    summary: >-
+      An Android app that tracks a drive and shares a live ETA by voice, SMS or
+      webhook. It needs no account and shows no ads.
+    platforms: [android]
+    purposes: [euc-riding-tools]
+    accent: "#1976d2"
+    image: destination-eta
+    os: Android
+    app_category: TravelApplication
+  - slug: euc-world-osmand
+    name: EUC World for OsmAnd
+    status: live
+    url: https://osmand-euc.a42r.com/
+    repo_url: https://github.com/githuba42r/OSM-EUC-World
+    summary: >-
+      An Android app that shows electric unicycle data from EUC World as OsmAnd
+      map widgets. It also works on Android Auto and as a home-screen widget.
+    platforms: [android]
+    purposes: [euc-riding-tools]
+    accent: "#c2410c"
+    image: euc-world-osmand
+    os: Android
+    app_category: SportsApplication
+  - slug: scooter-parking-crimes
+    name: Scooter Parking Crimes
+    status: live
+    url: https://spc.a42r.com/
+    repo_url: null
+    summary: >-
+      Photograph a badly parked hire scooter and the report goes to the operator
+      in about a minute. Available as an Android app and a web app.
+    platforms: [android, web-apps]
+    purposes: [euc-riding-tools, other-tools]
+    accent: "#dc2626"
+    image: scooter-parking-crimes
+    os: Android, Web
+    app_category: UtilitiesApplication
+  - slug: mdrender
+    name: MDRender
+    status: live
+    url: https://mdrender.a42r.com/
+    repo_url: https://github.com/githuba42r/mdrender
+    summary: >-
+      A private Android viewer for Markdown and other documents, with encrypted
+      storage. A self-hosted push server and desktop senders move files to it.
+    platforms: [android, desktop-self-hosted]
+    purposes: [development-tools, other-tools]
+    accent: "#c4314b"
+    image: mdrender
+    os: Android, Linux, macOS, Windows
+    app_category: DeveloperApplication
+  - slug: imagetools
+    name: ImageTools
+    status: live
+    url: https://image-tools.a42r.com/
+    repo_url: https://github.com/githuba42r/ImageTools
+    summary: >-
+      A self-hosted web app for compressing and editing large images before you
+      email or publish them. It also comes with an Android app and browser extensions.
+    platforms: [web-apps, browser-extensions, android]
+    purposes: [development-tools]
+    accent: "#4f46e5"
+    image: imagetools
+    os: Web, Android, Chrome, Firefox
+    app_category: MultimediaApplication
+  - slug: euc-charging-monitor
+    name: EUC Charging Monitor
+    status: live
+    url: https://github.com/githuba42r/euc_charging
+    repo_url: null
+    summary: >-
+      A Home Assistant integration that watches an electric unicycle charge over
+      Bluetooth. It reports voltage, battery level and time to full.
+    platforms: [desktop-self-hosted]
+    purposes: [euc-riding-tools]
+    accent: "#0b6fa4"
+    image: null
+    os: Home Assistant
+    app_category: UtilitiesApplication
+  - slug: motoeye-remote
+    name: MotoEye Remote
+    status: soon
+    url: null
+    repo_url: https://github.com/githuba42r/MotoEyeRemote/releases
+    summary: >-
+      A full-screen Android remote for the MotoEye motorcycle HUD, with big
+      glove-friendly buttons. It also shows tyre pressure and HUD battery.
+    platforms: [android]
+    purposes: [euc-riding-tools]
+    accent: "#0f766e"
+    image: null
+    os: Android
+    app_category: UtilitiesApplication
+  - slug: eucworld-dashboard-overlay
+    name: EUC World Dashboard Overlay
+    status: soon
+    url: null
+    repo_url: https://github.com/githuba42r/eucworld-dashboard-overlay
+    summary: >-
+      A desktop tool that draws battery, power and speed gauges over ride video
+      using EUC World data. A drag-and-drop editor sets up the layout.
+    platforms: [desktop-self-hosted]
+    purposes: [euc-riding-tools]
+    accent: "#a21caf"
+    image: null
+    os: Linux
+    app_category: MultimediaApplication
+  - slug: gpx-route-exploration
+    name: GPX Route Exploration
+    status: soon
+    url: null
+    repo_url: https://github.com/githuba42r/gpx-route-exploration
+    summary: >-
+      A self-hosted web service for uploading and analysing GPX routes. It shows
+      gradients and elevation, which matters when you ride on a battery.
+    platforms: [web-apps]
+    purposes: [euc-riding-tools]
+    accent: "#4d7c0f"
+    image: null
+    os: Web, Docker
+    app_category: TravelApplication
+  - slug: smartform-filler
+    name: SmartForm Filler
+    status: soon
+    url: null
+    repo_url: null
+    summary: >-
+      A browser extension that fills forms on dev and staging sites with
+      realistic test data. It can use a local Ollama model for consistent values.
+    platforms: [browser-extensions]
+    purposes: [development-tools]
+    accent: "#7c3aed"
+    image: null
+    os: Chrome, Brave, Edge
+    app_category: DeveloperApplication
+  - slug: sudoku-trainer
+    name: Sudoku Trainer
+    status: soon
+    url: null
+    repo_url: null
+    summary: >-
+      A web and Android app for drilling one Sudoku technique at a time. Its
+      generator makes sure the technique you chose comes up in the solve.
+    platforms: [web-apps, android]
+    purposes: [other-tools]
+    accent: "#be185d"
+    image: null
+    os: Web, Android
+    app_category: GameApplication
+  - slug: linux-torrent-downloader
+    name: LinuxTorrentDownloader
+    status: soon
+    url: null
+    repo_url: null
+    summary: >-
+      A self-hosted helper that works with Transmission to keep a set of Linux
+      ISOs current. New releases are picked up without anyone remembering.
+    platforms: [desktop-self-hosted]
+    purposes: [other-tools]
+    accent: "#57534e"
+    image: null
+    os: Linux
+    app_category: UtilitiesApplication
