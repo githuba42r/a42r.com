@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 from dataclasses import dataclass, field
@@ -138,6 +139,7 @@ def build(src: Path = Path("site"), out: Path = Path("website"), lastmod: str | 
         img_sizes=sizes,
         monogram=lambda p: Markup(monogram_svg(p.name, p.accent)),
         band_style=_band_style,
+        asset_version=hashlib.sha256((src / "static" / "styles.css").read_bytes()).hexdigest()[:10],
     )
 
     _empty_dir(out, src)

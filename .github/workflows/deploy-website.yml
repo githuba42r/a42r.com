@@ -1,0 +1,138 @@
+name: Deploy website
+
+# Mirrors website/ to the oracle-cloud web root served at
+# https://www.a42r.com/ (nginx static vhost); the site is built from
+# site/ + a42r_site/ by `python -m a42r_site.build` after the tests pass.
+#
+# Triggers:
+#   - push to main touching site/**, a42r_site/**, requirements.txt
+#   - manual dispatch
+#
+# Required repository secrets:
+#   WEBSITE_DEPLOY_HOST         SSH host (161.33.93.37 — the Cloudflare-proxied name won't carry SSH)
+#   WEBSITE_DEPLOY_USER         SSH user with write access to WEBSITE_DEPLOY_PATH
+#   WEBSITE_DEPLOY_SSH_KEY      private key for that user (ed25519, no passphrase)
+#   WEBSITE_DEPLOY_KNOWN_HOSTS  output of: ssh-keyscan -t ed25519 <host>
+# Cloudflare cache purge (skipped with a warning when either is absent):
+#   CLOUDFLARE_API_TOKEN        API token with Zone > Cache Purge on a42r.com
+#   CLOUDFLARE_ZONE_ID          zone ID of a42r.com (dashboard > Overview)
+# Optional repository variable:
+#   WEBSITE_DEPLOY_PATH         defaults to /opt/apps/a42r/website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "a42r_site/**"
+      - "requirements.txt"
+      - ".github/workflows/deploy-website.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-website
+  cancel-in-progress: true
+
+env:
+  DEPLOY_PATH: ${{ vars.WEBSITE_DEPLOY_PATH || '/opt/apps/a42r/website' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Build site
+        run: python -m a42r_site.build
+
+      - name: Verify deploy secrets are configured
+        env:
+          HOST: ${{ secrets.WEBSITE_DEPLOY_HOST }}
+          USER: ${{ secrets.WEBSITE_DEPLOY_USER }}
+          KEY: ${{ secrets.WEBSITE_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.WEBSITE_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          missing=""
+          if [ -z "$HOST" ]; then missing="$missing WEBSITE_DEPLOY_HOST"; fi
+          if [ -z "$USER" ]; then missing="$missing WEBSITE_DEPLOY_USER"; fi
+          if [ -z "$KEY" ]; then missing="$missing WEBSITE_DEPLOY_SSH_KEY"; fi
+          if [ -z "$KNOWN_HOSTS" ]; then missing="$missing WEBSITE_DEPLOY_KNOWN_HOSTS"; fi
+          if [ -n "$missing" ]; then
+            echo "::error::Missing GitHub Actions secrets:$missing"
+            exit 1
+          fi
+
+      - name: Set up SSH
+        env:
+          KEY: ${{ secrets.WEBSITE_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.WEBSITE_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Sync website/ to server
+        env:
+          HOST: ${{ secrets.WEBSITE_DEPLOY_HOST }}
+          USER: ${{ secrets.WEBSITE_DEPLOY_USER }}
+        run: |
+          # Trailing slashes: copy the contents of website/ into DEPLOY_PATH.
+          # --delete keeps the server an exact mirror of the repo directory.
+          # .a42r-build is the build's marker file; it never goes to the server.
+          rsync -rlvz --delete --exclude=.a42r-build --chmod=D755,F644 \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            website/ "$USER@$HOST:$DEPLOY_PATH/"
+
+      - name: Purge Cloudflare cache
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: |
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ZONE" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ZONE_ID not set — skipping cache purge"
+            exit 0
+          fi
+          # Purge by URL (works on every plan): the site root plus every deployed file.
+          base="https://www.a42r.com/"
+          { echo "$base"; (cd website && find . -type f | sed "s#^\./#$base#"); } > urls.txt
+          # 30 URLs per request keeps within the smallest per-call limit
+          split -l 30 urls.txt chunk.
+          for c in chunk.*; do
+            body=$(jq -R . "$c" | jq -s '{files: .}')
+            resp=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CF_ZONE/purge_cache" \
+              -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" --data "$body")
+            if [ "$(echo "$resp" | jq -r .success)" != "true" ]; then
+              echo "::error::Cloudflare purge failed: $(echo "$resp" | jq -c .errors)"
+              exit 1
+            fi
+          done
+          echo "Purged $(wc -l < urls.txt) URLs"
+
+      - name: Smoke-test live site
+        run: |
+          for path in "" robots.txt sitemap.xml favicon-32.png android/; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://www.a42r.com/$path")
+            echo "/$path -> $code"
+            if [ "$code" != "200" ]; then
+              echo "::error::https://www.a42r.com/$path returned $code"
+              exit 1
+            fi
+          done
