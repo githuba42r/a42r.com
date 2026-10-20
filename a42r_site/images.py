@@ -23,26 +23,39 @@ def _flatten(im: Image.Image, bg: str = "#ffffff") -> Image.Image:
     """Convert to RGB, compositing any transparency onto bg."""
     if im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info):
         rgba = im.convert("RGBA")
-        bg = Image.new("RGB", rgba.size, bg)
-        bg.paste(rgba, mask=rgba.getchannel("A"))
-        return bg
+        flat = Image.new("RGB", rgba.size, bg)
+        flat.paste(rgba, mask=rgba.getchannel("A"))
+        return flat
     return im.convert("RGB")
 
 
+def _edge_mean(im: Image.Image, boxes: list[tuple[int, int, int, int]]) -> tuple[int, ...]:
+    """Mean RGB over the given edge strips of im."""
+    means = [im.crop(box).resize((1, 1), Image.BOX).getpixel((0, 0)) for box in boxes]
+    return tuple(round(sum(m[i] for m in means) / len(means)) for i in range(3))
+
+
 def _to_16x9(im: Image.Image, bg: str) -> Image.Image:
-    """Normalise to 16:9: centre-crop landscape, letterbox portrait on bg."""
+    """Normalise to 16:9 without cropping: fit inside and pad.
+
+    Landscape sources are padded with the mean colour of their own edge
+    pixels on the padded sides; portrait sources are padded with bg.
+    """
     w, h = im.size
+    if w * 9 == h * 16:
+        return im
     if w / h >= 1.2:
-        if w * 9 > h * 16:  # wider than 16:9: crop width
-            cw = round(h * 16 / 9)
-            left = (w - cw) // 2
-            return im.crop((left, 0, left + cw, h))
-        ch = round(w * 9 / 16)  # between 1.2 and 16:9: crop height
-        top = (h - ch) // 2
-        return im.crop((0, top, w, top + ch))
-    cw = round(h * 16 / 9)
-    canvas = Image.new("RGB", (cw, h), bg)
-    canvas.paste(im, ((cw - w) // 2, 0))
+        if w * 9 > h * 16:  # wider than 16:9: pad top and bottom
+            size = (w, round(w * 9 / 16))
+            fill = _edge_mean(im, [(0, 0, w, 1), (0, h - 1, w, h)])
+        else:  # narrower than 16:9: pad left and right
+            size = (round(h * 16 / 9), h)
+            fill = _edge_mean(im, [(0, 0, 1, h), (w - 1, 0, w, h)])
+    else:
+        size = (round(h * 16 / 9), h)
+        fill = bg
+    canvas = Image.new("RGB", size, fill)
+    canvas.paste(im, ((size[0] - w) // 2, (size[1] - h) // 2))
     return canvas
 
 

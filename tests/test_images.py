@@ -27,6 +27,28 @@ def test_import_never_upscales(tmp_path):
     assert Image.open(tmp_path / "out/x-640.webp").size == (640, 360)
 
 
+def test_wide_source_not_cropped(tmp_path):
+    src = tmp_path / "s.png"
+    im = Image.new("RGB", (2000, 900), "white")
+    for x in list(range(10)) + list(range(1990, 2000)):
+        for y in range(900):
+            im.putpixel((x, y), (255, 0, 0))
+    im.save(src)
+    import_image(src, tmp_path / "out", "x")
+    out = Image.open(tmp_path / "out/x-640.jpg")
+    for x in (0, 639):
+        r, g, b = out.getpixel((x, 180))
+        assert r > 200 and g < 80 and b < 80
+
+
+def test_wide_pad_matches_edge_colour(tmp_path):
+    src = tmp_path / "s.png"
+    Image.new("RGB", (2000, 900), "#123456").save(src)
+    import_image(src, tmp_path / "out", "x")
+    px = Image.open(tmp_path / "out/x-640.jpg").getpixel((0, 0))
+    assert all(abs(a - b) <= 3 for a, b in zip(px, (0x12, 0x34, 0x56)))
+
+
 def test_portrait_letterboxed_on_tint(tmp_path):
     src = tmp_path / "s.png"
     Image.new("RGB", (1080, 2400), "black").save(src)
