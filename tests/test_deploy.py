@@ -25,6 +25,10 @@ def test_workflow_targets_www():
     assert "requirements-dev.txt" in text and "favicon-32.png" in text and "android/" in text
     triggers = wf.get("on") or wf[True]
     assert triggers["push"]["branches"] == ["main"]
+    assert "requirements-dev.txt" in triggers["push"]["paths"]
+    purge = next(st["run"] for st in wf["jobs"]["deploy"]["steps"] if st["name"] == "Purge Cloudflare cache")
+    assert "! -name .a42r-build" in purge
+    assert "-name index.html" in purge and "index\\.html$##" in purge
     assert "workflow_dispatch" in triggers
 
 
@@ -48,3 +52,12 @@ def test_css_cache_busted(built):
     css = (SITE_SRC / "static/styles.css").read_bytes()
     version = hashlib.sha256(css).hexdigest()[:10]
     assert f'href="/styles.css?v={version}"' in read(built, "index.html")
+
+
+def test_vhost_nginx_118_compatible():
+    conf = VHOST.read_text()
+    assert not re.search(r"^\s*http2\s+on\s*;", conf, re.M)
+    for line in conf.splitlines():
+        if "http2" in line:
+            assert line.strip().startswith("listen "), line
+    assert "listen 443 ssl http2;" in conf and "listen [::]:443 ssl http2;" in conf

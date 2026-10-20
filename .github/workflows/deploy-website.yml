@@ -26,6 +26,7 @@ on:
       - "site/**"
       - "a42r_site/**"
       - "requirements.txt"
+      - "requirements-dev.txt"
       - ".github/workflows/deploy-website.yml"
   workflow_dispatch:
 
@@ -112,7 +113,13 @@ jobs:
           fi
           # Purge by URL (works on every plan): the site root plus every deployed file.
           base="https://www.a42r.com/"
-          { echo "$base"; (cd website && find . -type f | sed "s#^\./#$base#"); } > urls.txt
+          # Skip the .a42r-build marker (never deployed). Pages are served at
+          # directory URLs, so every .../index.html also purges its directory URL.
+          {
+            echo "$base"
+            (cd website && find . -type f ! -name .a42r-build | sed "s#^\./#$base#")
+            (cd website && find . -type f -name index.html | sed -e "s#^\./#$base#" -e 's#index\.html$##')
+          } | sort -u > urls.txt
           # 30 URLs per request keeps within the smallest per-call limit
           split -l 30 urls.txt chunk.
           for c in chunk.*; do
