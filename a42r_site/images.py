@@ -20,6 +20,7 @@ IMAGE_SOURCES: dict[str, str] = {
     + "UnsafeRideshareParkingReports/play-store/feature-graphic-1024x500.png",
     "mdrender": _BASE + "MDRender/website/images/app-markdown.png",
     "imagetools": "https://image-tools.a42r.com/images/og-image.jpg",
+    "motoeye-remote": "https://motoeye-remote.a42r.com/images/og-image.jpg",
 }
 
 

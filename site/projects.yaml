@@ -190,8 +190,8 @@ projects:
     app_category: UtilitiesApplication
   - slug: motoeye-remote
     name: MotoEye Remote
-    status: soon
-    url: null
+    status: live
+    url: https://motoeye-remote.a42r.com/
     repo_url: https://github.com/githuba42r/MotoEyeRemote/releases
     summary: >-
       A full-screen Android remote for the MotoEye motorcycle HUD, with big
@@ -199,7 +199,7 @@ projects:
     platforms: [android]
     purposes: [euc-riding-tools]
     accent: "#0f766e"
-    image: null
+    image: motoeye-remote
     os: Android
     app_category: UtilitiesApplication
   - slug: eucworld-dashboard-overlay

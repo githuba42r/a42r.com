@@ -115,9 +115,11 @@ def test_live_vs_soon_actions(built):
     assert 'href="https://pevplugshare.a42r.com/"' in pev and "Visit site" in pev
     sud = band(read(built, "other-tools/index.html"), "Sudoku Trainer")
     assert "Coming soon" in sud and 'href="http' not in sud
+    overlay = band(read(built, "desktop-self-hosted/index.html"), "EUC World Dashboard Overlay")
+    assert "View on GitHub" in overlay and "Visit site" not in overlay
+    assert 'href="https://github.com/githuba42r/eucworld-dashboard-overlay"' in overlay
     moto = band(read(built, "android/index.html"), "MotoEye Remote")
-    assert "View on GitHub" in moto and "Visit site" not in moto
-    assert 'href="https://github.com/githuba42r/MotoEyeRemote/releases"' in moto
+    assert 'href="https://motoeye-remote.a42r.com/"' in moto and "Visit site" in moto
 
 
 def test_monogram_used_without_image(built):  # Review Focus 3
